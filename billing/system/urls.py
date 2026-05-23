@@ -32,6 +32,7 @@ router.register(r'calculate_cost', views.calculateViewSet, basename='calculate')
 
 
 urlpatterns = [
+    path('',views.dashboardView.as_view(),name='dashboard'),
     path('customer/',views.CustomerView.as_view(),name='customer'),
     path('jobs/', views.JobNumberView.as_view(), name='jobs'),
     path('jobs/<int:job_id>/items/', views.JobItemsView.as_view(), name='jobitems'),
@@ -41,6 +42,6 @@ urlpatterns = [
     path('process-charges/',views.process_chargesViewSet.as_view({'get':'list'}), name='process_charges'),
     path('items/',views.materialViewSet.as_view({'get':'list'}), name='material'),
     path('jobs/<int:job_id>/calculate/',views.calculateView.as_view(), name='calculate'), 
-    path('',include(router.urls)) 
+    path('api/',include(router.urls)) 
 ] 
 

@@ -115,7 +115,9 @@ from django.contrib import messages
 from decimal import Decimal
 import json
 
-
+class dashboardView(View):
+    def get(self, request):
+        return render(request, "dashboard.html")
 class CustomerView(View):
     def get(self, request):
         return render(request, 'customer.html')
