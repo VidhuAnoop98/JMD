@@ -59,7 +59,7 @@ class JobItems(models.Model):
     ]
     anodising_RATE={'COLOUR':Decimal(50),'HARD':Decimal(80),'NATURAL':Decimal(70),'TYPE_II':Decimal(100),'TYPE_III':Decimal(75)}
     thickness=[('5-10','5-10µ'),('15-25','15-25µ'),('25-50','25-50µ'),('50+','50µ')] 
-    THICKNESS_MULTIPLIER={'5-10':Decimal('1.0'),'15-25':Decimal('1.25'),'25-50':Decimal('1.5'),'50+':Decimal('1.7')}
+    THICKNESS_MULTIPLIER={'5-10':Decimal('1.5'),'15-25':Decimal('1.75'),'25-50':Decimal('2.0'),'50+':Decimal('2.2')}
     color=[('BLACK','5-8'),('BRONZE','6-8'),('CLEAR','0'),('GOLD','8-10'),('SILVER','12-15')]
     color_RATE={'BLACK':Decimal('7'),'BRONZE':Decimal('6'),'CLEAR':Decimal('0'),'GOLD':Decimal('9'),'SILVER':Decimal('13')}
     process=[('DEGREASING','3-5'),('ETCHING','5-8'),('POLISHING','8-10'),('SEALING','2-4'),('TEFLON COATING','10-15')]
