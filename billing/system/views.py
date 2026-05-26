@@ -117,7 +117,13 @@ import json
 
 class dashboardView(View):
     def get(self, request):
-        return render(request, "dashboard.html")
+        total_customer = CustomerInformation.objects.count()
+        total_jobs = JobNumber.objects.count()
+        return render(request, "Dashboard.html", {
+            "total_customer": total_customer,
+            "total_jobs": total_jobs,
+        })
+
 class CustomerView(View):
     def get(self, request):
         return render(request, 'customer.html')
@@ -253,4 +259,4 @@ class calculateView(View):
             "total": total
         })
 
-        return redirect("calculate",job_id=job_id)
+    #return redirect("calculate",job_id=job_id)

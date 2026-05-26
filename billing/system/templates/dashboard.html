@@ -43,12 +43,12 @@
 
             <div class="card">
                 <h2>Customers</h2>
-                <p id="totalCustomers">0</p>
+                <p id="totalCustomers">{{ total_customer }}</p>
             </div>
 
             <div class="card">
                 <h2>Total Job</h2>
-                <p id="totalInvoices">0</p>
+                <p id="totajob">{{ total_jobs }}</p>
             </div>
 
             <div class="card">
@@ -72,7 +72,21 @@
                     <th>Downloads</th>
                 </tr>
             </thead>
-            <tbody id="invoiceTable"></tbody>
+            <tbody id="invoiceTable">
+                {% for item in items %}
+                 <tr>
+                    <th>{invoice.date}</th>
+                    <th>{cusotmer.select_customer}r</th>
+                    <th>{invoice.invoiceno}</th>
+                    <th>{jobitems.total}</th>
+                    <th>Downloads</th>
+                </tr>
+                {% empty %}
+                <tr>
+                <td colspan="5" class="text-center text-muted">No items added to this job yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
 </table>
         </div>
     </div>
