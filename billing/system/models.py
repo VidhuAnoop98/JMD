@@ -108,3 +108,32 @@ class JobItems(models.Model):
     
     def __str__(self):
         return self.material
+
+class Invoice(models.Model):
+    customer=models.ForeignKey(CustomerInformation,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
+    jobs=models.ForeignKey(JobNumber,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
+    invoice_no = models.CharField(max_length=10,unique=True,blank=True)
+    details = models.ForeignKey(JobItems,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    gst_percent = models.DecimalField(max_digits=5, decimal_places=2, default=18)
+    gst_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    date=models.DateField(null=True,blank=True,default=datetime.now)
+    
+    def calculate_total(self):
+        self.gst_amount = self.subtotal * (self.gst_percent / 100)
+        self.total = self.subtotal + self.gst_amount - self.discount_amount
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_no:
+            last_invoice = Invoice.objects.order_by('id').last()
+            if last_invoice:
+                number = last_invoice.id + 1
+            else:
+                number = 1
+            self.invoice_no = f"INV-{datetime.today().year}{number:03d}"  
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return self.invoice_no

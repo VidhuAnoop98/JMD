@@ -121,7 +121,7 @@
 
   <script>
     function Invoice() {
-      window.location.href = "invoice.html";
+      window.location.href = "{% url 'invoice' job_id=job.id %}";
     }
     function Cancel() {
       window.location.href = "{% url 'jobitems' job_id=job.id %}";

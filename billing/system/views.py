@@ -110,6 +110,7 @@ class calculateViewSet(viewsets.ViewSet):
 
 #----FrontEnd View---------------
 from django.shortcuts import get_object_or_404, render, redirect
+from django.http import HttpResponse
 from django.views import View
 from django.contrib import messages
 from decimal import Decimal
@@ -260,3 +261,254 @@ class calculateView(View):
         })
 
     #return redirect("calculate",job_id=job_id)
+
+    #--------------------Reportlab------------------------
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+from reportlab.platypus import Image
+from datetime import datetime
+from django.conf import settings
+import os
+
+
+
+class InvoiceViewSet(viewsets.ModelViewSet):
+    """ViewSet for Invoice management tailored to the current Invoice model."""
+    queryset = Invoice.objects.all()
+    serializer_class = InvoiceSerializer
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+from reportlab.platypus import HRFlowable
+
+class InvoiceView(View):
+    def get(self, request, job_id):
+        job_obj = get_object_or_404(JobNumber, id=job_id)
+        items = JobItems.objects.filter(job_number=job_obj)
+
+        subtotal = sum(item.Total for item in items if item.Total)
+        from decimal import Decimal
+        gst = subtotal * Decimal('0.18')
+        total_amount = subtotal + gst
+
+        invoice_obj, created = Invoice.objects.get_or_create(
+            jobs=job_obj,
+            defaults={
+                'subtotal': subtotal,
+                'gst_amount': gst,
+                'total': total_amount,
+            }
+        )
+
+        # Get customer from invoice or use a default
+        customer_obj = invoice_obj.customer
+        filename = f"{customer_obj.select_customer}.pdf" if customer_obj else "invoice.pdf"
+
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+
+        doc = SimpleDocTemplate(
+            response,
+            pagesize=A4,
+            rightMargin=20,
+            leftMargin=20,
+            topMargin=20,
+            bottomMargin=20
+        )
+
+        elements = []
+        styles = getSampleStyleSheet()
+
+        # Try to load logo from MEDIA_ROOT; fall back to app static folder.
+        logo_path = None
+        if getattr(settings, 'MEDIA_ROOT', None):
+            logo_path = os.path.join(settings.MEDIA_ROOT, 'jmd-logo.jpg')
+
+        fallback_path = os.path.join(os.path.dirname(__file__), 'static', 'jmd-logo.jpg')
+
+        for path in (logo_path, fallback_path):
+            if path and os.path.exists(path):
+                try:
+                    logo = Image(path, width=170, height=70)
+                    elements.append(logo)
+                    break
+                except (OSError, IOError):
+                    # If reportlab can't open the image, skip it silently.
+                    break
+        
+        company = Paragraph("""
+        <b>JMD PVT LTD</b><br/>
+        Kerala, India<br/>
+        GSTIN: 32ABCDE1234F1Z5<br/>
+        Phone: 9999999999
+        """, styles['BodyText'])
+
+        customer_data = f"""
+        <b>Date:</b> {invoice_obj.date}<br/><br/>
+        """
+
+        inv = Paragraph(customer_data, styles['BodyText'])
+        elements.append(Spacer(1, 10))
+
+        top_table = Table([[company, inv]], colWidths=[430, 100])
+        elements.append(top_table)
+        elements.append(Spacer(1, 20))
+
+        elements.append(HRFlowable(width="100%"))
+        elements.append(Spacer(1, 10))
+
+        elements.append(HRFlowable(width="100%"))
+        elements.append(Spacer(1, 10))
+
+        # Safely render customer information; invoice may not have a customer set.
+        if invoice_obj and getattr(invoice_obj, 'customer', None):
+            cust = invoice_obj.customer
+            customer_info = Paragraph(
+                f"""<b>Full Name:</b> {cust.select_customer}<br/>
+                <b>GST Number:</b> {cust.gst_number}<br/>
+                <b>Email:</b> {cust.email}<br/>
+                <b>Address:</b> {cust.address}<br/>
+                """, styles['BodyText']
+            )
+        else:
+            customer_info = Paragraph(
+                """<b>Full Name:</b> N/A<br/>
+                <b>GST Number:</b> N/A<br/>
+                <b>Email:</b> N/A<br/>
+                <b>Address:</b> N/A<br/>
+                """, styles['BodyText']
+            )
+
+        job_info = Paragraph(f"""<b>Job Number:</b> {job_obj.job_number}<br/>
+                        <b>Date:</b> {job_obj.date}<br/>
+                        <b>Due Date:</b> {job_obj.duedate}<br/>
+                        <b>Description:</b> {job_obj.descriptions}<br/>
+                        """, styles['BodyText'])
+
+        top_table1 = Table([[customer_info, job_info]], colWidths=[430, 100])
+        elements.append(top_table1)
+        elements.append(Spacer(1, 20))
+
+        invoice_style = ParagraphStyle(
+            'InvoiceStyle',
+            parent=styles['BodyText'],
+            fontSize=20,
+            leading=22,
+            alignment=TA_CENTER
+        )
+        invoice_info = Paragraph(f"""<b>Invoice #:</b> {invoice_obj.invoice_no}<br/>
+                        """, invoice_style)
+        elements.append(invoice_info)
+        elements.append(Spacer(1, 10))
+
+        table_shape = [["Base Cost", "Thickness Cost", "Color Finish Cost", "Process Charge Cost"]]
+        for item in items:
+            table_shape.append([
+                f"{item.base_cost or 0:.2f}",
+                f"{item.thickness_cost or 0:.2f}",
+                f"{item.color_cost or 0:.2f}",
+                f"{item.process_cost or 0:.2f}",
+            ])
+
+        table1 = Table(table_shape, colWidths=[130, 130, 130, 130])
+        elements.append(table1)
+        elements.append(Spacer(1, 10))
+        table1_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#47b1b5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ])
+        table1.setStyle(table1_style)
+        
+
+        table_data = [
+            ["Sr. No", "Material", "Area", "Rate","Amount"]
+        ]
+
+        table = Table(table_data, colWidths=[20, 50, 30, 30, 30])
+
+        total = 0
+        for index, item in enumerate(items, start=1):
+            item_total = item.Total or 0
+            item_cgst = item_total * Decimal('0.09')
+            item_sgst = item_total * Decimal('0.09')
+            table_data.append([
+                str(index),
+                item.material,
+                f"{item.area or 0:.2f}",
+                f"IND",
+                f"Rs.{item_total:.2f}"
+            ])
+            total = item_total
+            cgst = item_cgst * Decimal('0.09')
+            sgst = item_sgst * Decimal('0.09')
+            grand_total = item_total + item_cgst + item_sgst
+
+        table_data.append(['', '', '', 'Subtotal', f"{total:.2f}"])
+        table_data.append(['', '', '', 'CGST 9%', f"{cgst:.2f}"])
+        table_data.append(['', '', '', 'SGST 9%', f"{sgst:.2f}"])
+        table_data.append(['', '', '', 'Grand Total', f"{grand_total:.2f}"])
+
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8D6508')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#8D6508'))
+        ])
+
+        details_table = Table(table_data, colWidths=[50, 250, 50, 100, 100])
+        details_table.setStyle(table_style)
+
+        elements.append(details_table)
+        elements.append(Spacer(1, 10))
+
+        
+        right_align = ParagraphStyle(
+        name='Right',
+        parent=styles['BodyText'],
+        alignment=TA_RIGHT
+        )
+
+        total_row = Paragraph(f"<b>Grand Total: Rs.{grand_total:.2f}</b>", right_align)
+        elements.append(total_row)
+        elements.append(Spacer(1, 20))
+        
+        center_style = ParagraphStyle(
+        name='Center',
+        parent=styles['BodyText'],
+        alignment=TA_CENTER
+        )
+        
+        footer_to = Paragraph("""
+        <b>Authorized Signature</b>
+         """, right_align)
+
+        elements.append(footer_to)
+        elements.append(Spacer(1, 20))
+
+        footer_center = Paragraph(
+            "<b>Thank You</b>",
+            center_style
+        )
+
+        elements.append(Spacer(1, 20))
+        elements.append(footer_center)
+
+        doc.build(elements)
+    
+        return response

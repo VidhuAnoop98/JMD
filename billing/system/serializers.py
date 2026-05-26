@@ -50,3 +50,8 @@ class calculateSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobItems
         fields = ['Total','area','material']
+        
+class InvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = '__all__'

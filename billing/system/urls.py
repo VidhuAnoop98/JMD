@@ -41,7 +41,8 @@ urlpatterns = [
     path('color/',views.colorViewSet.as_view({'get':'list'}), name='color'),
     path('process-charges/',views.process_chargesViewSet.as_view({'get':'list'}), name='process_charges'),
     path('items/',views.materialViewSet.as_view({'get':'list'}), name='material'),
-    path('jobs/<int:job_id>/calculate/',views.calculateView.as_view(), name='calculate'), 
+    path('jobs/<int:job_id>/calculate/',views.calculateView.as_view(), name='calculate'),
+    path('jobs/<int:job_id>/invoice/',views.InvoiceView.as_view(), name='invoice'),
     path('api/',include(router.urls)) 
 ] 
 
