@@ -78,8 +78,17 @@
 
   hr {
     border: 1px solid;
-    width: 700px;
+    width: 300px;
   }
+
+   #gst,
+  #total,
+  #subtotal {
+    margin-left: 480px;
+    margin-top: -3px;
+    margin: auto;
+  }
+
 
   table {
     width: 100%;

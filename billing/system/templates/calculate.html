@@ -84,7 +84,7 @@
           <td>₹{{ item.unit_rate|floatformat:2 }}</td>
           <td>{{ item.Total }}</td>
           <td>
-            <button onclick="activeItem({ item.id })" class="btn btn-danger btn-sm">Active</button>
+            <button onclick="activeItem({ itemid })" class="btn btn-danger btn-sm">Active</button>
           </td>
         </tr>
         {% empty %}
