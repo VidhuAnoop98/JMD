@@ -22,6 +22,7 @@ from . import views
 
 router = DefaultRouter()
 router.register(r'customer',views.CustomerInformationViewSet,basename='customer')
+router.register(r'jobs', views.JobNumberViewSet, basename='job')
 router.register(r'jobitems', views.JobItemsViewSet, basename='job_item')
 router.register(r'anodising-type', views.anodising_typeViewSet, basename='anodising_type')
 router.register(r'thickness', views.thicknessViewSet, basename='thickness')

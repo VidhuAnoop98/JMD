@@ -17,6 +17,10 @@ class CustomerInformationViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     authentication_classes = []
 
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        self.request.session['customer_id'] = instance.id
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -35,6 +39,11 @@ class JobNumberViewSet(viewsets.ModelViewSet):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+
+    def perform_create(self, serializer):
+        customer_id = self.request.session.get('customer_id')
+        customer = CustomerInformation.objects.filter(id=customer_id).first() if customer_id else None
+        serializer.save(customer=customer)
 
 class JobItemsViewSet(viewsets.ModelViewSet):
     queryset = JobItems.objects.all()
@@ -120,9 +129,13 @@ class dashboardView(View):
     def get(self, request):
         total_customer = CustomerInformation.objects.count()
         total_jobs = JobNumber.objects.count()
+        invoices = Invoice.objects.select_related('customer', 'jobs').all().order_by('-id')
+        total_sales = sum(inv.total for inv in invoices)
         return render(request, "Dashboard.html", {
             "total_customer": total_customer,
             "total_jobs": total_jobs,
+            "invoices": invoices,
+            "total_sales": total_sales,
         })
 
 class CustomerView(View):
@@ -146,12 +159,14 @@ class CustomerView(View):
                         }
                     })
 
-        CustomerInformation.objects.create(
+        customer = CustomerInformation.objects.create(
             select_customer=select_customer,
             gst_number=gst_number if gst_number else None,
             email=email,
             address=address,
         )
+        
+        request.session['customer_id'] = customer.id
 
         messages.success(request, "Customer added successfully.")
 
@@ -178,7 +193,11 @@ class JobNumberView(View):
             }
         })
 
+        customer_id = request.session.get('customer_id')
+        customer = CustomerInformation.objects.filter(id=customer_id).first() if customer_id else None
+
         job = JobNumber.objects.create(
+            customer=customer,
             job_number=job_number,
             date=date,
             duedate=duedate if duedate else None,
@@ -273,6 +292,7 @@ from reportlab.platypus import Image
 from datetime import datetime
 from django.conf import settings
 import os
+from reportlab.platypus import HRFlowable
 
 
 
@@ -283,11 +303,11 @@ class InvoiceViewSet(viewsets.ModelViewSet):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-from reportlab.platypus import HRFlowable
 
 class InvoiceView(View):
     def get(self, request, job_id):
         job_obj = get_object_or_404(JobNumber, id=job_id)
+        customer_obj = job_obj.customer
         items = JobItems.objects.filter(job_number=job_obj)
 
         subtotal = sum(item.Total for item in items if item.Total)
@@ -298,18 +318,17 @@ class InvoiceView(View):
         invoice_obj, created = Invoice.objects.get_or_create(
             jobs=job_obj,
             defaults={
+                'customer': customer_obj,
                 'subtotal': subtotal,
                 'gst_amount': gst,
                 'total': total_amount,
             }
         )
 
-        # Get customer from invoice or use a default
-        customer_obj = invoice_obj.customer
         filename = f"{customer_obj.select_customer}.pdf" if customer_obj else "invoice.pdf"
 
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
 
         doc = SimpleDocTemplate(
             response,
@@ -365,31 +384,21 @@ class InvoiceView(View):
         elements.append(Spacer(1, 10))
 
         # Safely render customer information; invoice may not have a customer set.
-        if invoice_obj and getattr(invoice_obj, 'customer', None):
-            cust = invoice_obj.customer
-            customer_info = Paragraph(
-                f"""<b>Full Name:</b> {cust.select_customer}<br/>
-                <b>GST Number:</b> {cust.gst_number}<br/>
-                <b>Email:</b> {cust.email}<br/>
-                <b>Address:</b> {cust.address}<br/>
+        customer_info = Paragraph(
+                f"""<b>Full Name:</b> {customer_obj.select_customer}<br/>
+                <b>GST Number:</b> {customer_obj.gst_number}<br/>
+                <b>Email:</b> {customer_obj.email}<br/>
+                <b>Address:</b> {customer_obj.address}<br/>
                 """, styles['BodyText']
             )
-        else:
-            customer_info = Paragraph(
-                """<b>Full Name:</b> N/A<br/>
-                <b>GST Number:</b> N/A<br/>
-                <b>Email:</b> N/A<br/>
-                <b>Address:</b> N/A<br/>
-                """, styles['BodyText']
-            )
+    
 
         job_info = Paragraph(f"""<b>Job Number:</b> {job_obj.job_number}<br/>
                         <b>Date:</b> {job_obj.date}<br/>
                         <b>Due Date:</b> {job_obj.duedate}<br/>
-                        <b>Description:</b> {job_obj.descriptions}<br/>
                         """, styles['BodyText'])
 
-        top_table1 = Table([[customer_info, job_info]], colWidths=[430, 100])
+        top_table1 = Table([[customer_info, job_info]], colWidths=[380, 150])
         elements.append(top_table1)
         elements.append(Spacer(1, 20))
 
@@ -453,7 +462,10 @@ class InvoiceView(View):
             cgst = item_cgst * Decimal('0.09')
             sgst = item_sgst * Decimal('0.09')
             grand_total = item_total + item_cgst + item_sgst
-
+            
+        table_data.append(['','','','',''])
+        table_data.append(['','','','',' '])
+        table_data.append(['','','','',' '])
         table_data.append(['', '', '', 'Subtotal', f"{total:.2f}"])
         table_data.append(['', '', '', 'CGST 9%', f"{cgst:.2f}"])
         table_data.append(['', '', '', 'SGST 9%', f"{sgst:.2f}"])
@@ -481,19 +493,22 @@ class InvoiceView(View):
         right_align = ParagraphStyle(
         name='Right',
         parent=styles['BodyText'],
-        alignment=TA_RIGHT
+        alignment=TA_RIGHT,
+        spaceBefore=100, 
         )
 
-        total_row = Paragraph(f"<b>Grand Total: Rs.{grand_total:.2f}</b>", right_align)
-        elements.append(total_row)
-        elements.append(Spacer(1, 20))
-        
         center_style = ParagraphStyle(
         name='Center',
         parent=styles['BodyText'],
-        alignment=TA_CENTER
+        alignment=TA_CENTER,
         )
         
+
+        total_row = Paragraph(f"<b>Grand Total: Rs.{grand_total:.2f}</b>", center_style)
+        elements.append(total_row)
+        elements.append(Spacer(1, 20))
+        
+    
         footer_to = Paragraph("""
         <b>Authorized Signature</b>
          """, right_align)

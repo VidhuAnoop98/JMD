@@ -51,7 +51,7 @@
         </div>
       {% endif %}
     
-    <form method="post" action="{% url 'customer' %}">
+    <form id="customerForm">
       {% csrf_token %}
       <div class="mb-3">
         <div class="c1">
@@ -74,16 +74,37 @@
       <div class="m">
         <div class="m">
           <button type="button" onclick="Back()" class="btn btn-secondary">Back</button>
-          <button onclick="Next()" id="submit-btn" class="btn btn-primary">Next</button>
+          <button type="submit" id="submit-btn" class="btn btn-primary">Next</button>
       </div>
       </div>
     </form>
 </body>
 <script>
+  $('#customerForm').submit(function(e) {
+      e.preventDefault();
+      var formData = {
+          select_customer: $('input[name=select_customer]').val(),
+          gst_number: $('input[name=gst_number]').val(),
+          email: $('input[name=email]').val(),
+          address: $('textarea[name=address]').val()
+      };
+      
+      $.ajax({
+          type: 'POST',
+          url: '/api/customer/',
+          data: formData,
+          headers: {
+              'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+          },
+          success: function(response) {
+              window.location.href = "{% url 'jobs' %}";
+          },
+          error: function(error) {
+              alert("Error: " + JSON.stringify(error.responseJSON));
+          }
+      });
+  });
 
-  function Next() {
-      window.location.href = "{% url 'jobs' %}"
-  }
   function Back() {
       window.location.href = "{% url 'customer' %}"
   }

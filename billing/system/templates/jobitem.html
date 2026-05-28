@@ -53,7 +53,8 @@
     {% if job_id %}
     <a href="{% url 'calculate' job_id=job_id %}" class="btn btn-primary"></a>
     {% endif %}
-    <form method="post" action="{% url 'jobitems' job_id=job_id %}">
+    <form id="jobItemForm">
+        <input type="hidden" id="job_id_input" value="{{ job_id }}">
         {% csrf_token %}
         <div class="mb-3">
             <div class="c1">
@@ -117,12 +118,42 @@
         </div>
         <div class="m">
             <button type="button" onclick="Back()" class="btn btn-danger">Back</button>
-            <button onclick="Submit()" type="submit" id="save-btn" class="btn btn-primary">Calculate & View Bill</button>
+            <button type="submit" id="save-btn" class="btn btn-primary">Calculate & View Bill</button>
         </div>
     </form>
 
     <script>
-        
+        $('#jobItemForm').submit(function(e) {
+            e.preventDefault();
+            var formData = {
+                job_number: $('#job_id_input').val(),
+                material: $('#material').val(),
+                length: $('#length').val() || 0,
+                width: $('#width').val() || 0,
+                quantity: $('#quantity').val() || 0,
+                area: $('#area').val() || 0,
+                anodising_type: $('#anodisingtype').val(),
+                thickness: $('#thickness').val(),
+                color_finish: $('#color').val(),
+                process_charges: $('#process_charges').val()
+            };
+            
+            $.ajax({
+                type: 'POST',
+                url: '/api/jobitems/',
+                data: formData,
+                headers: {
+                    'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                },
+                success: function(response) {
+                    window.location.href = "{% url 'calculate' job_id=job_id %}";
+                },
+                error: function(error) {
+                    alert("Error: " + JSON.stringify(error.responseJSON));
+                }
+            });
+        });
+
         function Back() {
             window.location.href = "{% url 'jobs' %}"
         }

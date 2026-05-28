@@ -50,7 +50,7 @@
     {% if job_number %}
     <a href="{% url 'jobitems' job_id=job_number.id %}" class="btn btn-primary">Add Items</a>
     {% endif %}
-    <form action="{% url 'jobs' %}" method="post">
+    <form id="jobForm">
         {% csrf_token %}
         <div class="mb-3">
             <div class="c1">
@@ -79,6 +79,31 @@
         </div>
     </form>
     <script>
+        $('#jobForm').submit(function(e) {
+            e.preventDefault();
+            var formData = {
+                job_number: $('input[name=job_number]').val(),
+                date: $('input[name=date]').val(),
+                duedate: $('input[name=duedate]').val() || null,
+                descriptions: $('textarea[name=descriptions]').val()
+            };
+            
+            $.ajax({
+                type: 'POST',
+                url: '/api/jobs/',
+                data: formData,
+                headers: {
+                    'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                },
+                success: function(response) {
+                    window.location.href = "/jobs/" + response.id + "/items/";
+                },
+                error: function(error) {
+                    alert("Error: " + JSON.stringify(error.responseJSON));
+                }
+            });
+        });
+
         function Back() {
             window.location.href = "{% url 'customer' %}"
         }

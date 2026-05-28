@@ -81,12 +81,7 @@
     width: 700px;
   }
 
-  #gst,
-  #total,
-  #subtotal {
-    margin-left: 680px;
-    margin-top: -3px;
-  }
+ 
 
   table {
     width: 100%;
@@ -102,12 +97,12 @@
   }
 
   table th {
-    background-color: #f5f5f5;
+    background-color: #b3f903;
     font-weight: bold;
   }
 
   table tr {
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #1408f0;
   }
 
   table tr:hover {

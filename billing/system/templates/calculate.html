@@ -9,11 +9,12 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
     integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB">
   <link rel="stylesheet" href="{% static 'core.css' %}">
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </head>
 
 <body>
   <div class="container">
-    <a href="#"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bank"
+    <a href="http://127.0.0.1:5000"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bank"
         viewBox="0 0 16 16">
         <path
           d="m8 0 6.61 3h.89a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5H15v7a.5.5 0 0 1 .485.38l.5 2a.498.498 0 0 1-.485.62H.5a.498.498 0 0 1-.485-.62l.5-2A.5.5 0 0 1 1 13V6H.5a.5.5 0 0 1-.5-.5v-2A.5.5 0 0 1 .5 3h.89zM3.777 3h8.447L8 1zM2 6v7h1V6zm2 0v7h2.5V6zm3.5 0v7h1V6zm2 0v7H12V6zM13 6v7h1V6zm2-1V4H1v1zm-.39 9H1.39l-.25 1h13.72z" />
@@ -81,9 +82,9 @@
           <td>{{ item.get_material_display }}</td>
           <td>{{ item.area }}</td>
           <td>₹{{ item.unit_rate|floatformat:2 }}</td>
-          <td>₹{{ item.Total }}</td>
+          <td>{{ item.Total }}</td>
           <td>
-            <a href="#" class="btn btn-danger btn-sm">Delete</a>
+            <button onclick="activeItem({{ item.id }})" class="btn btn-danger btn-sm">Active</button>
           </td>
         </tr>
         {% empty %}
@@ -93,13 +94,13 @@
         {% endfor %}
       </tbody>
     </table>
-    <div class="card p-3" style="max-width: 420px;">
-      <div class="d-flex justify-content-between mb-2">
+    <div class="card p-3">
+      <div class="d-flex justify-content-between ">
         <span class="text-muted">Subtotal</span>
         <span id="subtotal">₹{{ subtotal|floatformat:2 }}</span>
       </div>
 
-      <div class="d-flex justify-content-between mb-2">
+      <div class="d-flex justify-content-between">
         <span class="text-muted">
           GST <span class="badge bg-secondary ms-1">18%</span>
         </span>
@@ -120,6 +121,24 @@
   </div>
 
   <script>
+    function deleteItem(itemId) {
+        if (confirm("Are you sure you want to delete this item?")) {
+            $.ajax({
+                type: 'DELETE',
+                url: '/api/jobitems/' + itemId + '/',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    location.reload();
+                },
+                error: function(error) {
+                    alert("Error deleting item.");
+                }
+            });
+        }
+    }
+
     function Invoice() {
       window.location.href = "{% url 'invoice' job_id=job.id %}";
     }

@@ -24,6 +24,7 @@ class CustomerInformation(models.Model):
         return self.select_customer
 
 class JobNumber(models.Model):
+    customer = models.ForeignKey(CustomerInformation, on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
     job_number = models.CharField(max_length=8,unique=True,blank=True)
     date = models.DateField()
     duedate = models.DateField(null=True,blank=True)
