@@ -3,6 +3,7 @@ from django.shortcuts import render
 # Create your views here.
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny
+from rest_framework.views import APIView
 from .models import *
 from .serializers import *
 from rest_framework.decorators import action
@@ -30,6 +31,13 @@ class CustomerInformationViewSet(viewsets.ModelViewSet):
             serializer.data,
             status=status.HTTP_201_CREATED 
         )
+    
+    @action(detail=True, methods=['get'])
+    def get_customer_details(self, request, pk=None):
+        """Get customer details by ID"""
+        customer = self.get_object()
+        serializer = self.get_serializer(customer)
+        return Response(serializer.data)
 
 class JobNumberViewSet(viewsets.ModelViewSet): 
     queryset = JobNumber.objects.all()
@@ -64,6 +72,20 @@ class anodising_typeViewSet(viewsets.ViewSet):
         permission_classes = [AllowAny]
         authentication_classes = []
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='get-anodising-details')
+    def get_anodising_details(self, request):
+        """Get anodising type configuration details"""
+        details = {
+            'types': [
+                {'code': 'COLOUR', 'label': '50-70', 'rate': 50},
+                {'code': 'HARD', 'label': '80-120', 'rate': 80},
+                {'code': 'NATURAL', 'label': '70-180', 'rate': 70},
+                {'code': 'TYPE_II', 'label': '100-150', 'rate': 100},
+                {'code': 'TYPE_III', 'label': '75-150', 'rate': 75},
+            ]
+        }
+        return Response(details)
 
 class thicknessViewSet(viewsets.ViewSet):
     def list(self, request):
@@ -75,6 +97,19 @@ class thicknessViewSet(viewsets.ViewSet):
         permission_classes = [AllowAny]
         authentication_classes = []
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='get-thickness-details')
+    def get_thickness_details(self, request):
+        """Get thickness configuration details"""
+        details = {
+            'thicknesses': [
+                {'code': '5-10', 'label': '5-10µ', 'multiplier': 1.5},
+                {'code': '15-25', 'label': '15-25µ', 'multiplier': 1.75},
+                {'code': '25-50', 'label': '25-50µ', 'multiplier': 2.0},
+                {'code': '50+', 'label': '50µ', 'multiplier': 2.2},
+            ]
+        }
+        return Response(details)
 
 class colorViewSet(viewsets.ViewSet):
     def list(self, request):
@@ -85,6 +120,21 @@ class colorViewSet(viewsets.ViewSet):
 
         permission_classes = [AllowAny]
         authentication_classes = []
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'], url_path='get-color-details')
+    def get_color_details(self, request):
+        """Get color finish configuration details"""
+        details = {
+            'colors': [
+                {'code': 'BLACK', 'label': '5-8', 'rate': 7},
+                {'code': 'BRONZE', 'label': '6-8', 'rate': 6},
+                {'code': 'CLEAR', 'label': '0', 'rate': 0},
+                {'code': 'GOLD', 'label': '8-10', 'rate': 9},
+                {'code': 'SILVER', 'label': '12-15', 'rate': 13},
+            ]
+        }
+        return Response(details)
 
 class process_chargesViewSet(viewsets.ViewSet):
     def list(self, request):
@@ -95,6 +145,7 @@ class process_chargesViewSet(viewsets.ViewSet):
 
         permission_classes = [AllowAny]
         authentication_classes = []
+        return Response(serializer.data)
 
 class materialViewSet(viewsets.ViewSet):
     def list(self, request):
@@ -105,6 +156,7 @@ class materialViewSet(viewsets.ViewSet):
 
         permission_classes = [AllowAny]
         authentication_classes = []
+        return Response(serializer.data)
 
 class calculateViewSet(viewsets.ViewSet):
     def list(self, request):
@@ -116,6 +168,119 @@ class calculateViewSet(viewsets.ViewSet):
         permission_classes = [AllowAny]
         authentication_classes = []
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['post'], url_path='calculate-cost')
+    def calculate_cost(self, request):
+        """Calculate item cost based on specifications"""
+        from decimal import Decimal
+        
+        data = request.data
+        length = Decimal(str(data.get('length', 0)))
+        width = Decimal(str(data.get('width', 0)))
+        quantity = Decimal(str(data.get('quantity', 1)))
+        anodising_type = data.get('anodising_type', '')
+        thickness = data.get('thickness', '')
+        color_finish = data.get('color_finish', '')
+        process_charges = data.get('process_charges', '')
+        
+        # Rates from JobItems model
+        anodising_rates = {'COLOUR': 50, 'HARD': 80, 'NATURAL': 70, 'TYPE_II': 100, 'TYPE_III': 75}
+        thickness_multipliers = {'5-10': 1.5, '15-25': 1.75, '25-50': 2.0, '50+': 2.2}
+        color_rates = {'BLACK': 7, 'BRONZE': 6, 'CLEAR': 0, 'GOLD': 9, 'SILVER': 13}
+        process_rates = {'DEGREASING': 4, 'ETCHING': 6, 'POLISHING': 9, 'SEALING': 3, 'TEFLON COATING': 12}
+        
+        # Calculate area
+        area = length * width * quantity
+        
+        # Get rates
+        anodising_rate = Decimal(str(anodising_rates.get(anodising_type, 0)))
+        multiplier = Decimal(str(thickness_multipliers.get(thickness, 1)))
+        color_rate = Decimal(str(color_rates.get(color_finish, 0)))
+        process_rate = Decimal(str(process_rates.get(process_charges, 0)))
+        
+        # Calculate costs
+        base_cost = area * anodising_rate
+        thickness_cost = base_cost * (multiplier - Decimal('1'))
+        color_cost = color_rate * area
+        process_cost = area * process_rate
+        total_cost = base_cost + thickness_cost + color_cost + process_cost
+        
+        return Response({
+            'area': float(area),
+            'base_cost': float(base_cost),
+            'thickness_cost': float(thickness_cost),
+            'color_cost': float(color_cost),
+            'process_cost': float(process_cost),
+            'total_cost': float(total_cost)
+        }, status=status.HTTP_200_OK)
+
+class ReferenceDataViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
+    @action(detail=False, methods=['get'], url_path='get-all-data')
+    def get_all_data(self, request):
+        """Get all reference data (materials, anodising types, thickness, colors, processes)"""
+        all_data = {
+            'materials': [
+                {'code': 'EXTRUSION', 'label': 'Aluminium Extrusion(sq.ft)'},
+                {'code': 'PROFILE', 'label': 'Aluminium Profile(kg)'},
+                {'code': 'SHEET', 'label': 'Aluminium Sheet(Nos)'},
+                {'code': 'ROD', 'label': 'Round Aluminium Rod(kg)'},
+            ],
+            'anodising_types': [
+                {'code': 'COLOUR', 'label': '50-70', 'rate': 50},
+                {'code': 'HARD', 'label': '80-120', 'rate': 80},
+                {'code': 'NATURAL', 'label': '70-180', 'rate': 70},
+                {'code': 'TYPE_II', 'label': '100-150', 'rate': 100},
+                {'code': 'TYPE_III', 'label': '75-150', 'rate': 75},
+            ],
+            'thicknesses': [
+                {'code': '5-10', 'label': '5-10µ', 'multiplier': 1.5},
+                {'code': '15-25', 'label': '15-25µ', 'multiplier': 1.75},
+                {'code': '25-50', 'label': '25-50µ', 'multiplier': 2.0},
+                {'code': '50+', 'label': '50µ', 'multiplier': 2.2},
+            ],
+            'colors': [
+                {'code': 'BLACK', 'label': '5-8', 'rate': 7},
+                {'code': 'BRONZE', 'label': '6-8', 'rate': 6},
+                {'code': 'CLEAR', 'label': '0', 'rate': 0},
+                {'code': 'GOLD', 'label': '8-10', 'rate': 9},
+                {'code': 'SILVER', 'label': '12-15', 'rate': 13},
+            ],
+            'processes': [
+                {'code': 'DEGREASING', 'label': '3-5', 'rate': 4},
+                {'code': 'ETCHING', 'label': '5-8', 'rate': 6},
+                {'code': 'POLISHING', 'label': '8-10', 'rate': 9},
+                {'code': 'SEALING', 'label': '2-4', 'rate': 3},
+                {'code': 'TEFLON COATING', 'label': '10-15', 'rate': 12},
+            ]
+        }
+        return Response(all_data)
+
+class GetCustomerDetailsView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
+    def get(self, request):
+        """Get customer details by ID from query parameter"""
+        customer_id = request.query_params.get('id')
+        
+        if not customer_id:
+            return Response(
+                {'error': 'Missing customer ID parameter'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            customer = CustomerInformation.objects.get(id=customer_id)
+            serializer = CustomerInformationSerializer(customer)
+            return Response(serializer.data)
+        except CustomerInformation.DoesNotExist:
+            return Response(
+                {'error': 'Customer not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
 #----FrontEnd View---------------
 from django.shortcuts import get_object_or_404, render, redirect
@@ -131,7 +296,7 @@ class dashboardView(View):
         total_jobs = JobNumber.objects.count()
         invoices = Invoice.objects.select_related('customer', 'jobs').all().order_by('-id')
         total_sales = sum(inv.total for inv in invoices)
-        return render(request, "Dashboard.html", {
+        return render(request, "dashboard.html", {
             "total_customer": total_customer,
             "total_jobs": total_jobs,
             "invoices": invoices,

@@ -15,7 +15,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 from . import views
 
@@ -30,6 +30,8 @@ router.register(r'color', views.colorViewSet, basename='color')
 router.register(r'process-charges', views.process_chargesViewSet, basename='process_charges')
 router.register(r'material', views.materialViewSet, basename='material')
 router.register(r'calculate_cost', views.calculateViewSet, basename='calculate')
+router.register(r'invoices', views.InvoiceViewSet, basename='invoice')
+router.register(r'reference-data', views.ReferenceDataViewSet, basename='reference_data')
 
 
 urlpatterns = [
@@ -39,11 +41,19 @@ urlpatterns = [
     path('jobs/<int:job_id>/items/', views.JobItemsView.as_view(), name='jobitems'),
     path('anodising-type/',views.anodising_typeViewSet.as_view({'get':'list'}), name='anodising_type'),
     path('thickness/',views.thicknessViewSet.as_view({'get':'list'}), name='thickness'),
-    path('color/',views.colorViewSet.as_view({'get':'list'}), name='color'),
+    path('colors/',views.colorViewSet.as_view({'get':'list'}), name='color'),
     path('process-charges/',views.process_chargesViewSet.as_view({'get':'list'}), name='process_charges'),
     path('items/',views.materialViewSet.as_view({'get':'list'}), name='material'),
     path('jobs/<int:job_id>/calculate/',views.calculateView.as_view(), name='calculate'),
     path('jobs/<int:job_id>/invoice/',views.InvoiceView.as_view(), name='invoice'),
+    # API custom endpoints
+    path('api/get-customer-details/', views.GetCustomerDetailsView.as_view(), name='api_get_customer_details'),
+    path('api/get-anodising-details/', views.anodising_typeViewSet.as_view({'get':'get_anodising_details'}), name='get_anodising_details'),
+    path('api/get-thickness-details/', views.thicknessViewSet.as_view({'get':'get_thickness_details'}), name='get_thickness_details'),
+    path('api/get-color-details/', views.colorViewSet.as_view({'get':'get_color_details'}), name='color_details'),
+    path('api/calculate-cost/', views.calculateViewSet.as_view({'post':'calculate_cost'}), name='calculate_cost'),
+    path('api/get-all-data/', views.ReferenceDataViewSet.as_view({'get':'get_all_data'}), name='get_all_data'),
+    # Router URLs
     path('api/',include(router.urls)) 
 ] 
 

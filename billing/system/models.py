@@ -113,7 +113,7 @@ class JobItems(models.Model):
 class Invoice(models.Model):
     customer=models.ForeignKey(CustomerInformation,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
     jobs=models.ForeignKey(JobNumber,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
-    invoice_no = models.CharField(max_length=10,unique=True,blank=True)
+    invoice_no = models.CharField(max_length=15,unique=True,blank=True)
     details = models.ForeignKey(JobItems,on_delete=models.CASCADE,related_name='invoices',null=True,blank=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     gst_percent = models.DecimalField(max_digits=5, decimal_places=2, default=18)
